@@ -13,6 +13,12 @@ with open('devices.csv', 'r') as csvfile:
 	for row in csvreader:
 		codec_ips.append(row[0])
 
+def getXmlRequest(ip_addr, x_path):
+	print(ip_addr, x_path)
+
+def putXmlRequest(ip_addr, x_path):
+	print(ip_addr, x_path)
+
 
 for ip in codec_ips:
 	#Check cameratype cmd: xstatus cameras camera model	
