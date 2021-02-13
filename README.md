@@ -11,7 +11,7 @@ Example:
 <img width="504" alt="MacroRunning" src="https://user-images.githubusercontent.com/63974878/107840208-d910dd00-6d7e-11eb-8dde-33220ba51efe.png">
 
 ## Installation
-Requirements - XMLtoDict, Requests
+Requirements - Python3.7, XMLtoDict, Requests
 ```shell
 $ git clone https://github.com/ronpichardo/CiscoMacroScripts.git
 $ cd CiscoMacroScripts
