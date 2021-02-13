@@ -71,10 +71,9 @@ def gather_info(ip):
   try:
     print(macro_stats['Name'])
   except:
-    # print(f'Number of Macros: {len(macro_stats)}')
+    print(f'Number of Macros: {len(macro_stats)}')
     for macro in macro_stats:
-      if macro['Name'] == 'JustSomeDialer':
-        print(macro['Name'])
+      print(macro['Name'])
   
   # Check the status of loaded macros cmd: xcommand Macros Runtime Status
   payload = '''
