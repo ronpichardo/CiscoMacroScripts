@@ -1,7 +1,7 @@
 import requests, xmltodict
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-import csv, json
+import csv, datetime, sys
 
 from multiprocessing.pool import ThreadPool
 
@@ -11,12 +11,18 @@ username = ''
 password = ''
 
 # ToDo for saving results of the script
-# results_file = open('results.csv', 'a')
+results_file = open('results.csv', 'a')
 
-with open('devices.csv', 'r') as csvfile:
-	csvreader = csv.reader(csvfile)
-	for row in csvreader:
-		codec_ips.append(row[0])
+try:
+  with open('devices.csv', 'r') as csvfile:
+    csvreader = csv.reader(csvfile)
+    for row in csvreader:
+      codec_ips.append(row[0])
+except FileNotFoundError:
+  print('devices.csv does not exist, provide one before running again.')
+  sys.exit(0)
+
+start = datetime.datetime.now()
 
 def getXmlRequest(ip_addr, x_path):
 	
@@ -33,42 +39,45 @@ def putXmlRequest(ip_addr, x_path):
 
 def gather_info(ip):
 
-	system_name = getXmlRequest(ip, '/Configuration/SystemUnit/Name')
-	system_name = system_name['Configuration']['SystemUnit']['Name']['#text']
-	print(system_name)
+  system_name = getXmlRequest(ip, '/Configuration/SystemUnit/Name')
+  system_name = system_name['Configuration']['SystemUnit']['Name']['#text']
+  print(system_name)
 
-	#Check cameratype cmd: xstatus cameras camera model	
-	camera_type = getXmlRequest(ip, 'Status/Cameras/Camera/Model')
-	camera_type = camera_type['Status']['Cameras']['Camera']['Model']
-	print(camera_type)
+  #Check cameratype cmd: xstatus cameras camera model	
+  camera_type = getXmlRequest(ip, 'Status/Cameras/Camera/Model')
+  camera_type = camera_type['Status']['Cameras']['Camera']['Model']
+  print(camera_type)
 
-	#Check for a Touch10 cmd: xstatus Peripherals
-	panel_type = getXmlRequest(ip, 'Status/Peripherals/ConnectedDevice')
-	panel_type = panel_type['Status']['Peripherals']['ConnectedDevice']['Name']
-	print(panel_type)
+  #Check for a Touch10 cmd: xstatus Peripherals
+  panel_type = getXmlRequest(ip, 'Status/Peripherals/ConnectedDevice')
+  panel_type = panel_type['Status']['Peripherals']['ConnectedDevice']['Name']
+  if panel_type == 'Cisco TelePresence Touch':
+    panel_type = 'Touch10'
+  print(panel_type)
 
-	# Check current macros on system cmd: xcommand Macros Macro Get
-	payload = '''
-	<Command>
-		<Macros>
+  # Check current macros on system cmd: xcommand Macros Macro Get
+  payload = '''
+  <Command>
+    <Macros>
 			<Macro>
 				<Get></Get>
 			</Macro>
 		</Macros>
 	</Command>'''
 
-	macro_stats = putXmlRequest(ip, payload)
-	macro_stats = macro_stats['Command']['MacroGetResult']['Macro']
-	
-	try:
-		print(macro_stats['Name'])
-	except:
-		print(f'Number of Macros: {len(macro_stats)}')
-		for macro in macro_stats:
-			print(macro['Name'])
+  macro_stats = putXmlRequest(ip, payload)
+  macro_stats = macro_stats['Command']['MacroGetResult']['Macro']
 
-	# Check the status of loaded macros cmd: xcommand Macros Runtime Status
-	payload = '''
+  try:
+    print(macro_stats['Name'])
+  except:
+    # print(f'Number of Macros: {len(macro_stats)}')
+    for macro in macro_stats:
+      if macro['Name'] == 'JustSomeDialer':
+        print(macro['Name'])
+  
+  # Check the status of loaded macros cmd: xcommand Macros Runtime Status
+  payload = '''
 	<Command>
 		<Macros>
 			<Runtime>
@@ -77,31 +86,39 @@ def gather_info(ip):
 		</Macros>
 	</Command>'''
 
-	macro_activity = putXmlRequest(ip, payload)
-	macro_activity = macro_activity['Command']['RuntimeStatusResult']
-	print(macro_activity['ActiveMacros'], macro_activity['Running'])
+  macro_activity = putXmlRequest(ip, payload)
+  macro_activity = macro_activity['Command']['RuntimeStatusResult']
+  print(f'No. of Active macros: {macro_activity["ActiveMacros"]}')
 
-	# Get the SoftwareVersion of the codec cmd: xstatus Status SystemUnit Software Version
-	software_version = getXmlRequest(ip, 'Status/SystemUnit/Software/Version')
-	software_version = software_version['Status']['SystemUnit']['Software']['Version']
-	print(software_version)
+  # Get the SoftwareVersion of the codec cmd: xstatus Status SystemUnit Software Version
+  software_version = getXmlRequest(ip, 'Status/SystemUnit/Software/Version')
+  software_version = software_version['Status']['SystemUnit']['Software']['Version']
+  print(software_version)
 
-	# ToBeImplemented, outputting to a file for the results
-	# results_file.write(system_name + ',' + ip + ',' + software_version + ',' + camera_type + ',' + panel_type)
-	print()
+  # outputting to a file for the results
+  results_file.write(system_name + ',' + ip + ',' + software_version + ',' + camera_type + ',' + panel_type + '\n')
 
 
 def main():
 
-	pool = ThreadPool(3)
-	results = pool.map(gather_info, codec_ips)
-	pool.close()
-	pool.join()
+  pool = ThreadPool(3)
+  results = pool.map(gather_info, codec_ips)
+  pool.close()
+  pool.join()
 
-	return results
+  results_file.close()
+
+  finished = datetime.datetime.now()
+  elapsed = finished - start
+  
+  print(f'Elapsed program runtime is {elapsed}')
+
+  return results
 
 if __name__ == '__main__':
 
+  #  Runs a quick check on the IPs and removes them from the list
+  # if they happen to be offline/unreachable
 	for ip in codec_ips:
 		try:
 			system_name = getXmlRequest(ip, '/Configuration/SystemUnit/Name')
